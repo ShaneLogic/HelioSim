@@ -57,3 +57,5 @@ semilogy(errors, '-x');
 title('Convergence of Error');
 xlabel('Iteration');
 ylabel('Error');
+
+subplot(2, 1, 1);
