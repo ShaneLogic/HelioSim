@@ -5,3 +5,5 @@ rhs = [0; 0];
 U = L\rhs;
 
 clf, plot(U), grid on
+
+xxx
