@@ -1,103 +1,188 @@
 classdef InterfaceHandler < handle
-    % InterfaceHandler - Manages material interfaces in solar cell
-    % Ensures proper continuity conditions across heterojunctions
+    % InterfaceHandler - 处理材料界面的载流子传输和复合
     
     properties
-        params      % Solar cell parameters
+        params;          % 太阳能电池参数
+        
+        % 界面复合参数
+        S_n_ETL_abs = 1e5;  % ETL/吸收层界面电子复合速率 [cm/s]
+        S_p_ETL_abs = 1e5;  % ETL/吸收层界面空穴复合速率 [cm/s]
+        S_n_abs_HTL = 1e5;  % 吸收层/HTL界面电子复合速率 [cm/s]
+        S_p_abs_HTL = 1e5;  % 吸收层/HTL界面空穴复合速率 [cm/s]
     end
     
     methods
         function obj = InterfaceHandler(params)
-            % Constructor - initialize with cell parameters
+            % 构造函数 - 初始化参数
             obj.params = params;
         end
         
-        function [n_interface, p_interface] = applyConditions(obj, phi, n, p, idx)
-            % Apply interface conditions at a specified index
+        function [n, p] = applyInterfaceConditions(obj, n, p, phi)
+            % 在界面处应用载流子连续性和电流连续性条件
             
-            % Determine which interface we're at
-            if idx == obj.params.idx_ETL(end)
-                % ETL/Absorber interface
-                interface_type = 'ETL_abs';
-            else
-                % Absorber/HTL interface
-                interface_type = 'abs_HTL';
+            % 获取界面索引
+            intf_idx = obj.params.idx_interfaces;
+            
+            % 处理ETL/吸收层界面
+            if ~isempty(intf_idx) && length(intf_idx) >= 1
+                idx_intf = intf_idx(1);
+                
+                % 获取界面两侧材料属性
+                % 左侧(ETL)
+                mu_n_L = obj.params.mu_n_ETL;
+                mu_p_L = obj.params.mu_p_ETL;
+                D_n_L = obj.params.D_n_ETL;
+                D_p_L = obj.params.D_p_ETL;
+                
+                % 右侧(吸收层)
+                mu_n_R = obj.params.mu_n_abs;
+                mu_p_R = obj.params.mu_p_abs;
+                D_n_R = obj.params.D_n_abs;
+                D_p_R = obj.params.D_p_abs;
+                
+                % 使用热平衡界面模型处理电子
+                % 计算界面两侧电子浓度差异系数
+                [n(idx_intf-1), n(idx_intf+1)] = obj.calculateInterfaceConcentrations(n(idx_intf-1), n(idx_intf+1), ...
+                    phi(idx_intf-1), phi(idx_intf+1), obj.params.chi_ETL, obj.params.chi_abs, 'electron');
+                
+                % 使用热平衡界面模型处理空穴
+                [p(idx_intf-1), p(idx_intf+1)] = obj.calculateInterfaceConcentrations(p(idx_intf-1), p(idx_intf+1), ...
+                    phi(idx_intf-1), phi(idx_intf+1), obj.params.chi_ETL + obj.params.Eg_ETL, obj.params.chi_abs + obj.params.Eg_abs, 'hole');
+                
+                % 界面处的浓度插值
+                n(idx_intf) = sqrt(n(idx_intf-1) * n(idx_intf+1));
+                p(idx_intf) = sqrt(p(idx_intf-1) * p(idx_intf+1));
             end
             
-            % Get material parameters on both sides
-            if strcmp(interface_type, 'ETL_abs')
-                % ETL side (left)
-                chi_L = obj.params.chi_ETL;
-                Eg_L = obj.params.Eg_ETL;
-                Nc_L = obj.params.Nc_ETL;
-                Nv_L = obj.params.Nv_ETL;
+            % 处理吸收层/HTL界面
+            if ~isempty(intf_idx) && length(intf_idx) >= 2
+                idx_intf = intf_idx(2);
                 
-                % Absorber side (right)
-                chi_R = obj.params.chi_abs;
-                Eg_R = obj.params.Eg_abs;
-                Nc_R = obj.params.Nc_abs;
-                Nv_R = obj.params.Nv_abs;
-            else
-                % Absorber side (left)
-                chi_L = obj.params.chi_abs;
-                Eg_L = obj.params.Eg_abs;
-                Nc_L = obj.params.Nc_abs;
-                Nv_L = obj.params.Nv_abs;
+                % 获取界面两侧材料属性
+                % 左侧(吸收层)
+                mu_n_L = obj.params.mu_n_abs;
+                mu_p_L = obj.params.mu_p_abs;
+                D_n_L = obj.params.D_n_abs;
+                D_p_L = obj.params.D_p_abs;
                 
-                % HTL side (right)
-                chi_R = obj.params.chi_HTL;
-                Eg_R = obj.params.Eg_HTL;
-                Nc_R = obj.params.Nc_HTL;
-                Nv_R = obj.params.Nv_HTL;
+                % 右侧(HTL)
+                mu_n_R = obj.params.mu_n_HTL;
+                mu_p_R = obj.params.mu_p_HTL;
+                D_n_R = obj.params.D_n_HTL;
+                D_p_R = obj.params.D_p_HTL;
+                
+                % 使用热平衡界面模型处理电子
+                [n(idx_intf-1), n(idx_intf+1)] = obj.calculateInterfaceConcentrations(n(idx_intf-1), n(idx_intf+1), ...
+                    phi(idx_intf-1), phi(idx_intf+1), obj.params.chi_abs, obj.params.chi_HTL, 'electron');
+                
+                % 使用热平衡界面模型处理空穴
+                [p(idx_intf-1), p(idx_intf+1)] = obj.calculateInterfaceConcentrations(p(idx_intf-1), p(idx_intf+1), ...
+                    phi(idx_intf-1), phi(idx_intf+1), obj.params.chi_abs + obj.params.Eg_abs, obj.params.chi_HTL + obj.params.Eg_HTL, 'hole');
+                
+                % 界面处的浓度插值
+                n(idx_intf) = sqrt(n(idx_intf-1) * n(idx_intf+1));
+                p(idx_intf) = sqrt(p(idx_intf-1) * p(idx_intf+1));
+            end
+        end
+        
+        function [c_L, c_R] = calculateInterfaceConcentrations(obj, c_L_in, c_R_in, phi_L, phi_R, E_L, E_R, carrier_type)
+            % 计算界面两侧的载流子浓度，考虑带阶的影响
+            
+            % 初始化输出
+            c_L = c_L_in;
+            c_R = c_R_in;
+            
+            % 计算带阶
+            dE = E_R - E_L;
+            
+            % 将能级差转换为电压
+            dV = dE / obj.params.q;
+            
+            % 计算电势差
+            dPhi = phi_R - phi_L;
+            
+            % 计算有效势垒
+            if strcmp(carrier_type, 'electron')
+                barrier = dV - dPhi;
+            else % 空穴
+                barrier = -dV + dPhi;
             end
             
-            % Calculate band offsets
-            q = obj.params.q;
-            deltaEc = q * (chi_L - chi_R);
-            deltaEv = deltaEc - q * (Eg_L - Eg_R);
+            % 应用界面条件
+            % 如果载流子由左向右流动遇到下坡(barrier < 0)，则无阻碍
+            % 如果载流子由左向右流动遇到上坡(barrier > 0)，则用玻尔兹曼因子调整
+            if barrier > 0
+                % 电子/空穴从左到右遇到上坡势垒
+                c_R = c_L * exp(-barrier / obj.params.Vt);
+            else
+                % 电子/空穴从右到左遇到上坡势垒
+                c_L = c_R * exp(barrier / obj.params.Vt);
+            end
+        end
+        
+        function R_interface = calculateInterfaceRecombination(obj, n, p, phi)
+            % 计算界面复合率
             
-            % Get thermal energy
-            kT = obj.params.kb * obj.params.T;
+            % 获取界面索引
+            intf_idx = obj.params.idx_interfaces;
+            Nx = length(n);
             
-            % Get neighboring indices
-            idx_L = idx - 1;
-            idx_R = idx + 1;
+            % 初始化界面复合率
+            R_interface = zeros(Nx, 1);
             
-            % Get potential values
-            phi_L = phi(idx_L);
-            phi_R = phi(idx_R);
-            phi_I = phi(idx);
+            % 处理ETL/吸收层界面
+            if ~isempty(intf_idx) && length(intf_idx) >= 1
+                idx_intf = intf_idx(1);
+                
+                % 获取界面两侧的载流子浓度
+                n_L = n(idx_intf-1);
+                n_R = n(idx_intf+1);
+                p_L = p(idx_intf-1);
+                p_R = p(idx_intf+1);
+                
+                % 界面处的浓度
+                n_intf = n(idx_intf);
+                p_intf = p(idx_intf);
+                
+                % 计算平衡态界面浓度
+                ni_ETL = obj.params.ni_ETL;
+                ni_abs = obj.params.ni_abs;
+                ni_intf = sqrt(ni_ETL * ni_abs);
+                
+                % 计算界面复合率 (SRH模型)
+                R_intf = (n_intf * p_intf - ni_intf^2) / ...
+                         ((n_intf + ni_intf) / obj.S_p_ETL_abs + (p_intf + ni_intf) / obj.S_n_ETL_abs);
+                
+                % 将复合率赋值给界面点
+                R_interface(idx_intf) = R_intf;
+            end
             
-            % Calculate band energies at the interface and adjacent points
-            Ec_L = -q * chi_L - q * phi_L;
-            Ec_R = -q * chi_R - q * phi_R;
-            Ec_I = -q * chi_L - q * phi_I; % Reference to left material
-            
-            Ev_L = Ec_L - q * Eg_L;
-            Ev_R = Ec_R - q * Eg_R;
-            Ev_I = Ec_I - q * Eg_L; % Reference to left material
-            
-            % Calculate quasi-Fermi levels on left and right
-            Efn_L = Ec_L + kT * log(n(idx_L) / Nc_L);
-            Efn_R = Ec_R + kT * log(n(idx_R) / Nc_R);
-            
-            Efp_L = Ev_L + kT * log(p(idx_L) / Nv_L);
-            Efp_R = Ev_R + kT * log(p(idx_R) / Nv_R);
-            
-            % Enforce continuity of quasi-Fermi levels at interface
-            % Average approach for numerical stability
-            Efn_I = (Efn_L + Efn_R) / 2;
-            Efp_I = (Efp_L + Efp_R) / 2;
-            
-            % Calculate carrier densities at interface
-            n_interface = Nc_L * exp((Efn_I - Ec_I) / kT);
-            p_interface = Nv_L * exp((Efp_I - Ev_I) / kT);
-                        % Handle special cases for numerical stability
-            % Ensure carrier densities don't get too small
-            n_min = 1e2;
-            p_min = 1e2;
-            n_interface = max(n_interface, n_min);
-            p_interface = max(p_interface, p_min);
+            % 处理吸收层/HTL界面
+            if ~isempty(intf_idx) && length(intf_idx) >= 2
+                idx_intf = intf_idx(2);
+                
+                % 获取界面两侧的载流子浓度
+                n_L = n(idx_intf-1);
+                n_R = n(idx_intf+1);
+                p_L = p(idx_intf-1);
+                p_R = p(idx_intf+1);
+                
+                % 界面处的浓度
+                n_intf = n(idx_intf);
+                p_intf = p(idx_intf);
+                
+                % 计算平衡态界面浓度
+                ni_abs = obj.params.ni_abs;
+                ni_HTL = obj.params.ni_HTL;
+                ni_intf = sqrt(ni_abs * ni_HTL);
+                
+                % 计算界面复合率 (SRH模型)
+                R_intf = (n_intf * p_intf - ni_intf^2) / ...
+                         ((n_intf + ni_intf) / obj.S_p_abs_HTL + (p_intf + ni_intf) / obj.S_n_abs_HTL);
+                
+                % 将复合率赋值给界面点
+                R_interface(idx_intf) = R_intf;
+            end
         end
     end
 end
