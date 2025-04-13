@@ -2,7 +2,7 @@
 
 A comprehensive MATLAB toolkit for simulating the physics and performance of multi-layer solar cells using the drift-diffusion model.
 
-![Solar Cell Simulation](https://i.imgur.com/example.png)
+![Solar Cell Simulation](https://pubs.aip.org/view-large/figure/72144158/044506_1_f4.jpg)
 
 ## Features
 
