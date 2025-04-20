@@ -1,17 +1,72 @@
-# HelioSim: Drift-Diffusion Solar Cell Simulator
+# HelioSim: Drift-Diffusion Solar Cell Simulator for Perovskite Devices
 
-A comprehensive MATLAB toolkit for simulating the physics and performance of multi-layer solar cells using the drift-diffusion model.
+A comprehensive MATLAB toolkit for simulating the physics and performance of perovskite solar cells using the drift-diffusion model with Chebfun spectral methods.
 
-## Features
+## Table of Contents
 
-- Detailed drift-diffusion solver for solar cell operation
-- Multi-layer device support (ETL/Absorber/HTL architecture)
-- Comprehensive physical models for carrier generation and recombination
-- Band diagram visualization
-- J-V curve analysis and solar cell performance metrics
-- Parameter variation for device optimization
+1. [Code Structure](#code-structure)
+2. [Mathematical Model](#mathematical-model)
+3. [Numerical Methods](#numerical-methods)
+4. [Example: Perovskite Solar Cell](#example-perovskite-solar-cell)
+5. [Installation and Usage](#installation-and-usage)
+6. [Advanced Features](#advanced-features)
 
-## Physical Model
+## Code Structure
+
+HelioSim is organized into several core modules that work together to simulate solar cell behavior:
+
+### Core Components
+
+1. **SolarCellParamsOptimized.m**
+   - Contains physical constants, material parameters, and grid settings
+   - Specialized for perovskite solar cells
+   - Provides convenient parameter setting methods
+
+2. **DDSolverChebfunOptimized.m**
+   - Drift-diffusion equation solver using Chebfun spectral methods
+   - Implements high-precision solutions for Poisson and continuity equations
+   - Integrates interface handling and Scharfetter-Gummel discretization
+   - Uses adaptive time stepping and Newton iteration
+
+3. **RecombinationModelsOptimized.m**
+   - Implements SRH, Auger, and radiative recombination models
+   - Special handling for interface recombination
+   - Supports energy-dependent trap models
+
+4. **OpticalGenerationOptimized.m**
+   - Carrier generation model using Beer-Lambert absorption
+   - Supports wavelength-dependent absorption coefficients
+   - Optimized for perovskite materials
+
+5. **JVAnalyzerOptimized.m**
+   - J-V curve analyzer
+   - Calculates Voc, Jsc, fill factor, and efficiency
+   - Implements maximum power point tracking
+   - Optimized voltage scanning algorithm
+
+6. **VisualizerOptimized.m**
+   - Results visualization tool
+   - Band diagram plotting
+   - Carrier density visualization
+   - J-V curve plotting
+   - Electric field distribution visualization
+
+7. **main_perovskite_cell.m**
+   - Main script for perovskite solar cell simulation
+   - Sets parameters and configuration
+   - Runs simulation
+   - Analyzes and visualizes results
+
+### Data Flow
+
+1. `main_perovskite_cell.m` creates a `SolarCellParamsOptimized` instance and sets parameters
+2. Creates a `DDSolverChebfunOptimized` instance with parameters and configuration
+3. Solver internally creates `RecombinationModelsOptimized` and `OpticalGenerationOptimized` instances
+4. Solver solves drift-diffusion equations and returns results
+5. Creates `JVAnalyzerOptimized` instance to analyze performance
+6. Creates `VisualizerOptimized` instance to visualize results
+
+## Mathematical Model
 
 HelioSim implements a comprehensive drift-diffusion model that solves the coupled semiconductor equations:
 
@@ -37,173 +92,226 @@ HelioSim implements a comprehensive drift-diffusion model that solves the couple
    ```
    where E is the electric field.
 
+### Boundary Conditions
+
+- **Ohmic Contacts**: Fixed carrier concentrations at the electrodes
+- **Interface Conditions**: Continuity of electric displacement and quasi-Fermi levels at material interfaces
+
 ### Physical Processes
 
 The simulator includes detailed models for:
 
-- **Optical Generation**: Beer-Lambert absorption model with optional AM1.5G spectrum
+- **Optical Generation**: Beer-Lambert absorption model with AM1.5G spectrum
 - **Recombination Mechanisms**:
   - Shockley-Read-Hall (SRH) recombination
   - Radiative (band-to-band) recombination
   - Auger recombination
+  - Interface recombination
 - **Interface Physics**: Band offsets and interface recombination
 - **Band Diagram Calculation**: Including band bending at interfaces
 
-## Installation
+## Numerical Methods
+
+HelioSim employs advanced numerical techniques for accurate and efficient simulation:
+
+### Spatial Discretization
+
+- **Chebfun Spectral Methods**: Replaces finite differences with spectral methods
+- **Adaptive Grid Refinement**: At interfaces for better resolution
+- **High-Precision Derivative Calculation**: For accurate field and current calculations
+
+### Time Integration
+
+- **Implicit Time Stepping**: For numerical stability
+- **Adaptive Time Step Control**: Based on solution dynamics
+- **Newton Method**: For solving nonlinear equation systems
+
+### Interface Handling
+
+- **Scharfetter-Gummel Discretization**: For accurate current calculation
+- **Band Discontinuity Treatment**: Accounts for energy band offsets
+- **Thermionic Emission Model**: For carrier transport across interfaces
+
+### Recombination Models
+
+- **Position-Dependent Parameters**: For different material regions
+- **Interface-Specific Recombination**: Enhanced recombination at interfaces
+- **Trap Energy Distribution**: For realistic defect modeling
+
+## Example: Perovskite Solar Cell
+
+### Device Structure
+
+The default simulation models a typical perovskite solar cell with the following structure:
+
+- **ETL**: TiO2 (100 nm)
+- **Absorber**: MAPbI3 (500 nm)
+- **HTL**: Spiro-OMeTAD (100 nm)
+
+### Key Parameters
+
+#### TiO2 (ETL)
+- Bandgap: 3.2 eV
+- Electron affinity: 4.0 eV
+- Dielectric constant: 9.0
+- Electron mobility: 100 cm²/Vs
+- Donor doping: 1×10¹⁷ cm⁻³
+
+#### MAPbI3 (Absorber)
+- Bandgap: 1.55 eV
+- Electron affinity: 3.9 eV
+- Dielectric constant: 25.0
+- Electron/hole mobility: 20 cm²/Vs
+- Intrinsic (undoped)
+- Carrier lifetime: 1 μs
+
+#### Spiro-OMeTAD (HTL)
+- Bandgap: 3.0 eV
+- Electron affinity: 2.1 eV
+- Dielectric constant: 3.0
+- Hole mobility: 50 cm²/Vs
+- Acceptor doping: 1×10¹⁷ cm⁻³
+
+#### Interface Parameters
+- ETL/Absorber interface recombination velocity: 10⁴ cm/s
+- Absorber/HTL interface recombination velocity: 10⁴ cm/s
+
+### Simulation Results
+
+The simulation produces the following key performance metrics for the perovskite solar cell:
+
+- **Open-circuit voltage (Voc)**: ~1.0-1.1 V
+- **Short-circuit current density (Jsc)**: ~22-24 mA/cm²
+- **Fill factor (FF)**: ~0.75-0.80
+- **Power conversion efficiency (PCE)**: ~18-22%
+
+The simulation also generates detailed visualizations including:
+
+- Band diagram showing band bending at interfaces
+- Carrier concentration profiles
+- Electric field distribution
+- J-V characteristic curve
+- Recombination rate profiles
+
+## Installation and Usage
+
+### Requirements
+
+- MATLAB (version 2016b or newer recommended)
+- Chebfun library (included in the package)
+
+### Installation
 
 1. Clone this repository or download all files
-2. Open MATLAB (version 2016b or newer recommended)
+2. Open MATLAB
 3. Navigate to the HelioSim directory
 4. Run the main script to start the simulation:
    ```matlab
-   runSimulation
+   main_perovskite_cell
    ```
 
-## Quick Start Guide
+### Basic Usage
 
-### Running Your First Simulation
-
-1. **Basic Equilibrium Simulation**:
-   ```matlab
-   % Create parameters with default values
-   params = SolarCellParams();
-   
-   % Configure simulation settings
-   config = struct('t_start', 0, 't_end', 1e-9, 'num_time_steps', 51, ...
-                   'rel_tol', 1e-6, 'abs_tol', 1e-8, ...
-                   'illumination', false, 'voltage_sweep', false);
-   
-   % Create solver and run simulation
-   solver = DDSolver(params, config);
-   results = solver.solve();
-   
-   % Visualize results
-   visualizer = Visualizer(params);
-   visualizer.plotBandDiagram(results);
-   ```
-
-2. **Generate J-V Curve**:
-   ```matlab
-   % Set illumination to true
-   params.setIllumination(true);
-   
-   % Create J-V analyzer and generate curve
-   analyzer = JVAnalyzer(params, solver);
-   jv_results = analyzer.generateJVCurve(-0.2, 1.2, 20);
-   
-   % Display performance metrics
-   fprintf('Voc: %.4f V\n', jv_results.Voc);
-   fprintf('Jsc: %.4f mA/cm^2\n', jv_results.Jsc);
-   fprintf('Fill Factor: %.4f\n', jv_results.FF);
-   fprintf('Efficiency: %.2f%%\n', jv_results.PCE);
-   ```
-
-### Using the GUI
-
-For easier interaction, use the built-in GUI by running:
 ```matlab
-runSimulation
+% Run the main perovskite cell simulation
+main_perovskite_cell
+
+% To modify parameters before running:
+params = SolarCellParamsOptimized();
+params.L_absorber = 500e-7;  % 500 nm absorber thickness
+params.Eg_abs = 1.55;        % 1.55 eV bandgap
+params.mu_n_abs = 20;        % 20 cm²/Vs electron mobility
+params.mu_p_abs = 20;        % 20 cm²/Vs hole mobility
+
+% Configure simulation
+config.t_max = 1e-9;          % Maximum simulation time
+config.illumination = true;   % Enable illumination
+
+% Create solver and run
+solver = DDSolverChebfunOptimized(params, config);
+results = solver.solve();
+
+% Analyze J-V characteristics
+analyzer = JVAnalyzerOptimized(params, solver);
+jv_results = analyzer.generateJVCurve(-0.1, 1.2, 30);
+
+% Visualize results
+visualizer = VisualizerOptimized(params);
+visualizer.setResults(results);
+visualizer.plotBandDiagram();
+visualizer.setJVResults(jv_results);
+visualizer.plotJVCurve();
 ```
 
-This opens an interactive interface where you can:
-- Set device parameters
-- Choose simulation type (equilibrium, applied bias, illumination, J-V)
-- Visualize results
-- Perform parameter sweeps for optimization
+## Advanced Features
 
-## Customizing Device Parameters
-
-You can customize your solar cell device by modifying parameters:
+### Parameter Sweeps
 
 ```matlab
-% Create default parameters
-params = SolarCellParams();
+% Example: Sweep absorber thickness
+thicknesses = [300, 400, 500, 600, 700] * 1e-7;  % nm to cm
+PCE = zeros(size(thicknesses));
 
-% Modify absorber layer properties
-params.setAbsorberThickness(500e-7);  % 500 nm
-params.setAbsorberBandgap(1.55);      % 1.55 eV
-params.setAbsorberMobility(10);       % 10 cm²/Vs
-
-% Modify contact layers
-params.setETLDoping(5e17);            % Donor concentration in ETL
-params.setHTLDoping(5e17);            % Acceptor concentration in HTL
-
-% Update illumination state
-params.setIllumination(true);
-
-% Set applied voltage
-params.setAppliedVoltage(0.5);        % 0.5 V
-```
-
-## Code Structure
-
-- `DDSolver.m`: Core drift-diffusion solver
-- `SolarCellParams.m`: Device parameter definitions
-- `OpticalGeneration.m`: Light absorption and carrier generation
-- `RecombinationModels.m`: Carrier recombination mechanisms
-- `InterfaceHandler.m`: Interface condition handling
-- `Visualizer.m`: Result visualization
-- `JVAnalyzer.m`: J-V curve generation and performance analysis
-- `runSimulation.m`: Main script with optional GUI
-- `main_solar_cell.m`: Simple command-line example
-
-## Example: Parameter Sweep
-
-```matlab
-% Create parameter and solver objects
-params = SolarCellParams();
-config = struct('t_start', 0, 't_end', 1e-9, 'num_time_steps', 51, ...
-                'rel_tol', 1e-6, 'abs_tol', 1e-8, ...
-                'illumination', true, 'voltage_sweep', false);
-solver = DDSolver(params, config);
-analyzer = JVAnalyzer(params, solver);
-
-% Define bandgap range
-bandgaps = 1.1:0.1:1.7;  % 1.1 to 1.7 eV
-PCE = zeros(size(bandgaps));
-
-% Sweep over bandgaps
-for i = 1:length(bandgaps)
-    params.setAbsorberBandgap(bandgaps(i));
+for i = 1:length(thicknesses)
+    params.L_absorber = thicknesses(i);
+    % Update grid
+    params.generateGrid();
+    % Run simulation and get J-V results
     jv_results = analyzer.generateJVCurve();
     PCE(i) = jv_results.PCE;
-    fprintf('Bandgap = %.2f eV, PCE = %.2f%%\n', bandgaps(i), PCE(i));
+    fprintf('Thickness = %.0f nm, PCE = %.2f%%\n', thicknesses(i)*1e7, PCE(i));
 end
 
 % Plot results
 figure;
-plot(bandgaps, PCE, 'o-', 'LineWidth', 2);
-xlabel('Bandgap (eV)');
+plot(thicknesses*1e7, PCE, 'o-', 'LineWidth', 2);
+xlabel('Absorber Thickness (nm)');
 ylabel('Power Conversion Efficiency (%)');
-title('PCE vs. Absorber Bandgap');
+title('PCE vs. Absorber Thickness');
 grid on;
 ```
 
-## Advanced Usage
+### Hysteresis Analysis
 
-### Implementing Custom Generation Profiles
-
-You can modify the optical generation profile by extending the `OpticalGeneration` class:
+The simulator can model hysteresis effects in perovskite solar cells by performing forward and reverse voltage scans:
 
 ```matlab
-% Create a custom generation profile
-optical_gen = OpticalGeneration(params);
-custom_gen = @(x) params.G_max * exp(-(x-params.x(1)).^2/1e-10);
-G = arrayfun(custom_gen, params.x);
+% Configure hysteresis analysis
+config.scan_rate = 100;  % V/s
+config.preconditioning = true;
 
-% Use in simulation
-% [your simulation code]
+% Run forward and reverse scans
+[forward_results, reverse_results] = analyzer.performHysteresisAnalysis();
+
+% Calculate hysteresis index
+HI = analyzer.calculateHysteresisIndex(forward_results, reverse_results);
+fprintf('Hysteresis Index: %.4f\n', HI);
+
+% Visualize hysteresis
+visualizer.plotHysteresisJVCurve(forward_results, reverse_results);
 ```
 
-### Using Different Recombination Models
-
-You can modify recombination parameters to model different materials:
+### Custom Optical Generation
 
 ```matlab
-% Create recombination model
-recomb = RecombinationModels(params);
+% Create custom generation profile
+optical_gen = OpticalGenerationOptimized(params);
+optical_gen.enable_interference = true;  % Enable interference effects
+custom_gen = optical_gen.calculateGeneration();
 
-% Modify parameters for perovskite-like material
+% Use in simulation
+solver.setGenerationProfile(custom_gen);
+```
+
+### Interface Engineering
+
+```matlab
+% Modify interface properties
+params.S_ETL_abs = 1e3;  % ETL/absorber interface recombination velocity (cm/s)
+params.S_abs_HTL = 1e3;  % absorber/HTL interface recombination velocity (cm/s)
+
+% Add interface dipole
+params.dipole_ETL_abs = 0.1;  % 0.1 eV dipole at ETL/absorber interface
 recomb.B_rad_abs = 5e-10;        % Stronger radiative recombination
 recomb.Cn_auger_abs = 1e-29;     % Faster Auger recombination
 recomb.Cp_auger_abs = 1e-29;
